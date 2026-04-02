@@ -17,17 +17,113 @@ Replace this paragraph with your own summary of what your version does.
 
 ## How The System Works
 
-Explain your design in plain language.
+### How Real-World Recommenders Work
 
-Some prompts to answer:
+Platforms like Spotify and YouTube combine two core strategies. **Collaborative filtering** finds patterns across millions of users — if you and another listener share 80% of the same favorites, songs they love that you haven't heard become candidates for you. **Content-based filtering** analyzes the attributes of the music itself (tempo, energy, mood, acousticness) and matches songs whose features are closest to your taste profile. Real systems blend both approaches in hybrid models, layered with contextual signals like time of day, device type, and listening session history, to rank thousands of candidates into a personalized list. Our simulation focuses on content-based filtering: scoring each song by how closely its attributes match a user's stated preferences.
 
-- What features does each `Song` use in your system
-  - For example: genre, mood, energy, tempo
-- What information does your `UserProfile` store
-- How does your `Recommender` compute a score for each song
-- How do you choose which songs to recommend
+### What Our Version Prioritizes
 
-You can include a simple diagram or bullet list if helpful.
+This recommender uses a **weighted similarity scoring** approach. For each song, it computes how close the song's features are to the user's preferences, then ranks all songs by that score and returns the top results.
+
+### Song Features
+
+Each `Song` object carries 10 attributes. Some are visible to the user, others drive the recommendation engine behind the scenes:
+
+- **Visible to users:** `title`, `artist`, `genre`
+- **Used for scoring (hidden from users):** `mood`, `energy`, `tempo_bpm`, `valence`, `danceability`, `acousticness`
+- **Identifier:** `id`
+
+### UserProfile Data
+
+Each `UserProfile` stores the user's taste preferences:
+
+- `favorite_genre` — preferred genre (e.g., "lofi", "pop")
+- `favorite_mood` — preferred mood (e.g., "chill", "intense")
+- `target_energy` — preferred energy level (0.0–1.0)
+- `target_valence` — preferred emotional tone (0.0–1.0)
+- `target_danceability` — preferred danceability (0.0–1.0)
+- `likes_acoustic` — whether the user prefers acoustic-sounding tracks (boolean)
+
+### How Users Provide Preferences
+
+Users never enter raw numbers. The CLI asks plain-language questions and maps answers to numerical values behind the scenes:
+
+| Question | Options | Mapped Value |
+|---|---|---|
+| Pick a genre | lofi, pop, rock, jazz, ... | stored as-is |
+| Pick a mood | chill, happy, intense, focused, ... | stored as-is |
+| Energy level? | low / medium / high | 0.3 / 0.6 / 0.9 |
+| Vibe? | sad / neutral / happy | 0.3 / 0.5 / 0.8 |
+| Danceability? | low / medium / high | 0.3 / 0.6 / 0.9 |
+| Prefer acoustic? | y / n | True / False |
+
+In a real-world system, these numbers would be computed implicitly by averaging the attributes of songs the user has listened to and liked.
+
+### Scoring Rule (one song)
+
+For each song, the recommender computes a point-based score by checking six factors:
+
+| Factor | Points | How It's Scored |
+|---|---|---|
+| Genre match | +2.0 | Awarded if `song.genre == user.favorite_genre` |
+| Mood match | +1.0 | Awarded if `song.mood == user.favorite_mood` |
+| Energy similarity | up to +1.5 | `1.5 × (1 - abs(song.energy - user.target_energy))` |
+| Valence similarity | up to +1.0 | `1.0 × (1 - abs(song.valence - user.target_valence))` |
+| Danceability similarity | up to +0.5 | `0.5 × (1 - abs(song.danceability - user.target_danceability))` |
+| Acousticness bonus | +0.5 | Awarded if `user.likes_acoustic` and `song.acousticness > 0.7` |
+
+**Maximum possible score: ~6.5 points.**
+
+**Why this weighting?**
+- **Genre (+2.0)** is the strongest signal — it defines the broadest boundary of taste.
+- **Mood (+1.0)** captures listener intent but is more context-dependent.
+- **Energy (+1.5)** gets the highest continuous weight because the energy range in our catalog (0.25–0.97) represents the biggest perceptual difference between songs.
+- **Valence (+1.0)** keeps emotional tone meaningful but below genre.
+- **Danceability (+0.5)** serves as a tiebreaker, not a primary driver.
+- **Acousticness (+0.5)** is a modest binary bonus for users who prefer acoustic-sounding tracks.
+
+Genre alone cannot dominate: a genre match (2.0) without energy/mood alignment still loses to a non-genre match with strong continuous scores (up to 4.5).
+
+### Ranking Rule (all songs)
+
+1. Score every song in the catalog using the rule above
+2. Sort by score in descending order
+3. Return the top `k` results (default k=5) with explanations
+
+### Data Flow Diagram
+
+![Data Flow Diagram](dataflow-1.png)
+
+See [data_flow.md](data_flow.md) for the full Mermaid flowchart script of the recommendation process.
+
+### Algorithm Recipe (Finalized)
+
+```
+score = 0.0
+
+if song.genre == user.favorite_genre:      score += 2.0
+if song.mood  == user.favorite_mood:        score += 1.0
+
+score += 1.5 × (1 - |song.energy       - user.target_energy|)
+score += 1.0 × (1 - |song.valence      - user.target_valence|)
+score += 0.5 × (1 - |song.danceability - user.target_danceability|)
+
+if user.likes_acoustic and song.acousticness > 0.7:
+    score += 0.5
+
+return score   # max ≈ 6.5
+```
+
+Sort all songs by score descending → return top k (default 5) with explanations.
+
+### Potential Biases and Limitations
+
+- **Genre over-prioritization.** At +2.0, genre is the single largest factor. A song that perfectly matches the user's mood, energy, and valence but belongs to a different genre will likely rank below a mediocre genre match. This can create a "genre bubble" where users never discover cross-genre songs they would enjoy.
+- **Exact-string matching for genre and mood.** "indie pop" and "pop" are treated as completely different genres (0 points), even though they overlap significantly. Similarly, "chill" and "relaxed" earn no partial credit despite being nearly synonymous.
+- **Small catalog bias.** With only 20 songs spanning 12 genres, some genres have just one representative. A user who picks "blues" will always get the same single song ranked highest, giving an illusion of confidence with no real variety.
+- **No diversity mechanism.** The system ranks purely by score, so the top 5 could all be from the same artist or genre. Real recommenders inject diversity to avoid repetitive recommendations.
+- **Static preferences.** The system assumes a user's taste is fixed for the session. It cannot adapt if the user skips a recommendation or changes mood mid-session.
+- **Acousticness as a binary gate.** The 0.7 threshold is arbitrary — a song with 0.69 acousticness gets no bonus while 0.71 gets the full +0.5, creating a cliff effect rather than a smooth gradient.
 
 ---
 
