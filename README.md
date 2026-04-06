@@ -170,6 +170,12 @@ Use this section to document the experiments you ran. For example:
 - What happened when you added tempo or valence to the score
 - How did your system behave for different types of users
 
+### Sample Output
+
+Below is a screenshot of the recommender running against four user profiles (Pop Enthusiast, Chill Studier, Workout Warrior, Melancholic Folkster), showing ranked song titles, scores, and the scoring reasons for each recommendation:
+
+![Recommendations Output](images/recommendations_output.png)
+
 ---
 
 ## Limitations and Risks

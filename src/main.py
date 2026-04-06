@@ -9,11 +9,12 @@ You will implement the functions in recommender.py:
 - recommend_songs
 """
 
-from recommender import load_songs, recommend_songs
+from src.recommender import load_songs, recommend_songs
 
 
 def main() -> None:
-    songs = load_songs("data/songs.csv") 
+    songs = load_songs("data/songs.csv")
+    print(f"Loaded songs: {len(songs)}")
 
     # Sample user profiles representing different listener types
     profiles = {
@@ -52,21 +53,24 @@ def main() -> None:
     }
 
     for name, user_prefs in profiles.items():
-        print(f"\n{'='*50}")
-        print(f"Profile: {name}")
-        print(f"  Genre: {user_prefs['genre']}, Mood: {user_prefs['mood']}, "
-              f"Energy: {user_prefs['energy']}, Valence: {user_prefs['valence']}, "
-              f"Danceability: {user_prefs['danceability']}, "
-              f"Acoustic: {user_prefs['likes_acoustic']}")
-        print(f"{'='*50}")
+        print(f"\n{'='*58}")
+        print(f"  Profile: {name}")
+        print(f"  Genre: {user_prefs['genre']}  |  Mood: {user_prefs['mood']}  |  "
+              f"Energy: {user_prefs['energy']}")
+        print(f"  Valence: {user_prefs['valence']}  |  Danceability: {user_prefs['danceability']}"
+              f"  |  Acoustic: {'Yes' if user_prefs['likes_acoustic'] else 'No'}")
+        print(f"{'='*58}")
 
         recommendations = recommend_songs(user_prefs, songs, k=5)
 
-        print("\nTop recommendations:\n")
-        for rec in recommendations:
-            song, score, explanation = rec
-            print(f"  {song['title']} by {song['artist']} - Score: {score:.2f}")
-            print(f"    Because: {explanation}")
+        print(f"\n  {'#':<4} {'Song':<28} {'Score':>5}")
+        print(f"  {'-'*4} {'-'*28} {'-'*5}")
+
+        for rank, (song, score, explanation) in enumerate(recommendations, 1):
+            print(f"  {rank:<4} {song['title']:<28} {score:>5.2f}")
+            print(f"       by {song['artist']}")
+            for reason in explanation.split("; "):
+                print(f"         - {reason}")
             print()
 
 
