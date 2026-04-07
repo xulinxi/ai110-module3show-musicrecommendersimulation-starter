@@ -398,6 +398,115 @@ print(format_results_table(recommendations, "Profile Name", user_prefs))
 
 ---
 
+## Possible Next Step: Enhancing with Machine Learning
+
+Our current recommender is purely rule-based — we hand-picked every weight and formula. Machine learning could replace those manual decisions with data-driven ones. Below are concrete ways ML libraries could enhance this project.
+
+### 1. Learn Optimal Weights with scikit-learn (Regression)
+
+**The problem:** We manually set genre to 2.0, energy to 1.5, etc. These weights are guesses. Are they actually optimal?
+
+**The ML approach:** If we collected user feedback (e.g., "did the user like this recommendation? yes/no"), we could train a regression model to learn the best weights automatically.
+
+```
+Library: scikit-learn
+Model: LinearRegression or Ridge
+Input features (X): genre_match (0/1), mood_match (0/1), energy_diff, valence_diff, danceability_diff, acousticness
+Target (y): user satisfaction score (1-5 rating or binary like/skip)
+Output: learned coefficients = optimal weights
+```
+
+The learned coefficients would directly replace our hand-tuned weights. If the model learns `genre_coef = 0.8` and `energy_coef = 2.3`, that tells us energy matters more than genre — something our adversarial testing already hinted at.
+
+### 2. Semantic Genre/Mood Similarity with Sentence Embeddings
+
+**The problem:** Our system treats "indie pop" and "pop" as completely unrelated (0 points). Same for "chill" vs. "relaxed."
+
+**The ML approach:** Use a pre-trained embedding model to convert genre and mood strings into vectors, then compute cosine similarity instead of exact matching.
+
+```
+Library: sentence-transformers (or scikit-learn with pre-computed embeddings)
+Model: all-MiniLM-L6-v2 (lightweight, fast)
+How: embed("indie pop") and embed("pop") → cosine similarity ≈ 0.85 → partial credit
+```
+
+This would replace the binary genre/mood check with a smooth 0.0–1.0 similarity score, eliminating the all-or-nothing cliff and making the system aware that related genres should get partial credit.
+
+### 3. K-Nearest Neighbors for Content-Based Filtering
+
+**The problem:** Our scoring function computes similarity one feature at a time with separate weights. It can't capture feature *interactions* (e.g., high energy + low valence together = "intense" but neither alone implies it).
+
+**The ML approach:** Represent each song as a feature vector and use KNN to find the most similar songs to a user's ideal profile in one step.
+
+```
+Library: scikit-learn
+Model: NearestNeighbors (with cosine or euclidean distance)
+Input: song feature vectors [energy, valence, danceability, acousticness, instrumental, ...]
+Query: user preference vector [target_energy, target_valence, ...]
+Output: k nearest songs by distance
+```
+
+KNN considers all features simultaneously and naturally handles feature interactions. A song that's close in the combined feature space ranks higher, even if no single feature is a perfect match.
+
+### 4. Clustering Songs for Discovery with K-Means
+
+**The problem:** The diversity penalty is a post-hoc fix. The system doesn't understand that songs naturally group into "vibes."
+
+**The ML approach:** Cluster songs into groups based on their audio features, then ensure recommendations pull from multiple clusters.
+
+```
+Library: scikit-learn
+Model: KMeans (n_clusters=5-7)
+Input: [energy, valence, danceability, acousticness, tempo_bpm, instrumental]
+Output: cluster labels — e.g., "high-energy dance," "quiet acoustic," "dark intense"
+```
+
+Instead of the current genre-label-based diversity penalty, we could enforce diversity across learned clusters. A "quiet acoustic" cluster might contain songs from lofi, folk, jazz, and classical — genres that sound similar despite different labels.
+
+### 5. Collaborative Filtering with Surprise
+
+**The problem:** Our system is purely content-based — it only looks at song features. It can't learn from what *other* users liked.
+
+**The ML approach:** If we had a user-song interaction matrix (users rating or playing songs), we could use matrix factorization to discover latent taste dimensions.
+
+```
+Library: surprise (scikit-surprise)
+Model: SVD (Singular Value Decomposition)
+Input: user-song rating matrix (user_id, song_id, rating)
+Output: predicted ratings for songs a user hasn't heard
+```
+
+This is what Spotify does at scale. Users who share 80% of the same favorites likely share the remaining 20% too. The model discovers these patterns without needing to know *why* the songs are similar.
+
+### 6. Claude API for Natural Language Preferences
+
+**The problem:** Users currently pick from fixed menus (genre, mood, energy level). Real preferences are more nuanced — "I want something like what I'd hear at a late-night coffee shop in Tokyo."
+
+**The ML approach:** Use the Claude API to interpret free-text descriptions and map them to feature vectors.
+
+```
+Library: anthropic (Claude API SDK)
+How: Send the user's natural language description to Claude along with the song catalog,
+     and ask it to return a ranked list with explanations.
+```
+
+This would let users describe what they want in plain English instead of filling out a form, making the system feel more like talking to a knowledgeable friend.
+
+### Summary: Which ML Approach Solves Which Problem
+
+| Current Limitation | ML Solution | Library |
+|---|---|---|
+| Hand-tuned weights | Learn weights from feedback data | scikit-learn (Ridge) |
+| Exact-string genre/mood matching | Embedding-based semantic similarity | sentence-transformers |
+| Independent feature scoring | Multi-dimensional similarity | scikit-learn (KNN) |
+| Post-hoc diversity penalty | Cluster-based diversity | scikit-learn (KMeans) |
+| No cross-user learning | Collaborative filtering | surprise (SVD) |
+| Fixed-menu preferences | Natural language understanding | anthropic (Claude API) |
+
+These enhancements are additive — each one can be implemented independently without rewriting the rest of the system. The simplest starting point would be **#1 (learn weights)** since it plugs directly into our existing scoring function, and **#2 (semantic similarity)** since it fixes the most obvious flaw we found in adversarial testing.
+
+---
+
 ## Limitations and Risks
 
 Summarize some limitations of your recommender.
