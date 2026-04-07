@@ -9,7 +9,7 @@ You will implement the functions in recommender.py:
 - recommend_songs
 """
 
-from src.recommender import load_songs, recommend_songs
+from src.recommender import load_songs, recommend_songs, format_results_table, SCORING_MODES
 
 
 def main() -> None:
@@ -52,26 +52,62 @@ def main() -> None:
         },
     }
 
+    # ── Default run: balanced mode with tabulate output (Challenge 4) ─
+    print("\n" + "=" * 70)
+    print("  SCORING MODE: balanced (default)")
+    print("=" * 70)
+
     for name, user_prefs in profiles.items():
-        print(f"\n{'='*58}")
-        print(f"  Profile: {name}")
-        print(f"  Genre: {user_prefs['genre']}  |  Mood: {user_prefs['mood']}  |  "
-              f"Energy: {user_prefs['energy']}")
-        print(f"  Valence: {user_prefs['valence']}  |  Danceability: {user_prefs['danceability']}"
-              f"  |  Acoustic: {'Yes' if user_prefs['likes_acoustic'] else 'No'}")
-        print(f"{'='*58}")
-
         recommendations = recommend_songs(user_prefs, songs, k=5)
+        print(format_results_table(recommendations, name, user_prefs))
 
-        print(f"\n  {'#':<4} {'Song':<28} {'Score':>5}")
-        print(f"  {'-'*4} {'-'*28} {'-'*5}")
+    # ── Challenge 2: Multiple Scoring Modes ───────────────────────────
+    print("\n\n" + "#" * 70)
+    print("  CHALLENGE 2: Comparing Scoring Modes for 'Pop Enthusiast'")
+    print("#" * 70)
 
-        for rank, (song, score, explanation) in enumerate(recommendations, 1):
-            print(f"  {rank:<4} {song['title']:<28} {score:>5.2f}")
-            print(f"       by {song['artist']}")
-            for reason in explanation.split("; "):
-                print(f"         - {reason}")
-            print()
+    pop_prefs = profiles["Pop Enthusiast"]
+    for mode_name in ["genre-first", "mood-first", "energy-focused"]:
+        print(f"\n--- Mode: {mode_name} ---")
+        recs = recommend_songs(pop_prefs, songs, k=5, mode=mode_name)
+        print(format_results_table(recs, f"Pop Enthusiast [{mode_name}]", pop_prefs))
+
+    # ── Challenge 3: Diversity Penalty ────────────────────────────────
+    print("\n\n" + "#" * 70)
+    print("  CHALLENGE 3: Diversity Penalty (Chill Studier)")
+    print("#" * 70)
+
+    chill_prefs = profiles["Chill Studier"]
+
+    print("\n--- WITHOUT diversity penalty ---")
+    recs_no_div = recommend_songs(chill_prefs, songs, k=5)
+    print(format_results_table(recs_no_div, "Chill Studier [no diversity]", chill_prefs))
+
+    print("\n--- WITH diversity penalty ---")
+    recs_div = recommend_songs(chill_prefs, songs, k=5, diversity=True)
+    print(format_results_table(recs_div, "Chill Studier [diversity ON]", chill_prefs))
+
+    # ── Challenge 1: Full-Feature Mode (new attributes) ───────────────
+    print("\n\n" + "#" * 70)
+    print("  CHALLENGE 1: Full-Feature Mode (5 new attributes)")
+    print("#" * 70)
+
+    full_feature_profile = {
+        "genre": "lofi",
+        "mood": "chill",
+        "energy": 0.38,
+        "valence": 0.58,
+        "danceability": 0.55,
+        "likes_acoustic": True,
+        # New Challenge 1 preferences
+        "preferred_decade": "2020s",
+        "preferred_mood_tags": ["nostalgic", "dreamy"],
+        "target_instrumental": 0.85,
+        "target_lyrics_sentiment": 0.10,
+    }
+
+    recs_full = recommend_songs(full_feature_profile, songs, k=5, mode="full-feature", diversity=True)
+    print(format_results_table(recs_full, "Chill Studier [full-feature + diversity]", full_feature_profile))
 
 
 if __name__ == "__main__":

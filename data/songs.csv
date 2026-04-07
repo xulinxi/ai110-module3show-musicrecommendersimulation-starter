@@ -1,21 +1,21 @@
-id,title,artist,genre,mood,energy,tempo_bpm,valence,danceability,acousticness
-1,Sunrise City,Neon Echo,pop,happy,0.82,118,0.84,0.79,0.18
-2,Midnight Coding,LoRoom,lofi,chill,0.42,78,0.56,0.62,0.71
-3,Storm Runner,Voltline,rock,intense,0.91,152,0.48,0.66,0.10
-4,Library Rain,Paper Lanterns,lofi,chill,0.35,72,0.60,0.58,0.86
-5,Gym Hero,Max Pulse,pop,intense,0.93,132,0.77,0.88,0.05
-6,Spacewalk Thoughts,Orbit Bloom,ambient,chill,0.28,60,0.65,0.41,0.92
-7,Coffee Shop Stories,Slow Stereo,jazz,relaxed,0.37,90,0.71,0.54,0.89
-8,Night Drive Loop,Neon Echo,synthwave,moody,0.75,110,0.49,0.73,0.22
-9,Focus Flow,LoRoom,lofi,focused,0.40,80,0.59,0.60,0.78
-10,Rooftop Lights,Indigo Parade,indie pop,happy,0.76,124,0.81,0.82,0.35
-11,Velvet Thunder,Bass Cathedral,hip hop,energetic,0.88,95,0.72,0.85,0.08
-12,Ghost in the Garden,Pale Moon,folk,melancholic,0.31,84,0.34,0.42,0.94
-13,Neon Pulse,Chromavolt,electronic,euphoric,0.95,140,0.90,0.92,0.03
-14,Sunday Morning Blues,Rusty Strings,blues,nostalgic,0.44,72,0.52,0.48,0.88
-15,Rage Protocol,Iron Cascade,metal,aggressive,0.97,168,0.22,0.55,0.06
-16,Golden Hour,Saffron Sky,r&b,romantic,0.56,88,0.78,0.74,0.41
-17,Cumbia del Sol,Los Brillantes,latin,joyful,0.80,108,0.88,0.91,0.52
-18,Requiem for Rain,Hollow Strings,classical,somber,0.25,56,0.28,0.20,0.97
-19,Digital Dreamscape,ByteWave,edm,uplifting,0.92,128,0.85,0.90,0.04
-20,Dusty Highways,The Drifters,country,wistful,0.48,100,0.60,0.58,0.82
+id,title,artist,genre,mood,energy,tempo_bpm,valence,danceability,acousticness,popularity,release_decade,mood_tags,instrumental,lyrics_sentiment
+1,Sunrise City,Neon Echo,pop,happy,0.82,118,0.84,0.79,0.18,85,2020s,"upbeat;carefree",0.15,0.80
+2,Midnight Coding,LoRoom,lofi,chill,0.42,78,0.56,0.62,0.71,62,2020s,"nostalgic;dreamy",0.85,0.00
+3,Storm Runner,Voltline,rock,intense,0.91,152,0.48,0.66,0.10,74,2010s,"aggressive;powerful",0.20,0.35
+4,Library Rain,Paper Lanterns,lofi,chill,0.35,72,0.60,0.58,0.86,58,2020s,"peaceful;nostalgic",0.90,0.00
+5,Gym Hero,Max Pulse,pop,intense,0.93,132,0.77,0.88,0.05,91,2020s,"powerful;upbeat",0.10,0.60
+6,Spacewalk Thoughts,Orbit Bloom,ambient,chill,0.28,60,0.65,0.41,0.92,45,2010s,"dreamy;ethereal",0.95,0.00
+7,Coffee Shop Stories,Slow Stereo,jazz,relaxed,0.37,90,0.71,0.54,0.89,53,2000s,"nostalgic;warm",0.40,0.55
+8,Night Drive Loop,Neon Echo,synthwave,moody,0.75,110,0.49,0.73,0.22,70,2010s,"nostalgic;ethereal",0.60,0.30
+9,Focus Flow,LoRoom,lofi,focused,0.40,80,0.59,0.60,0.78,66,2020s,"peaceful;focused",0.88,0.00
+10,Rooftop Lights,Indigo Parade,indie pop,happy,0.76,124,0.81,0.82,0.35,72,2020s,"carefree;euphoric",0.25,0.70
+11,Velvet Thunder,Bass Cathedral,hip hop,energetic,0.88,95,0.72,0.85,0.08,80,2020s,"aggressive;powerful",0.15,0.45
+12,Ghost in the Garden,Pale Moon,folk,melancholic,0.31,84,0.34,0.42,0.94,41,2010s,"nostalgic;melancholy",0.35,0.25
+13,Neon Pulse,Chromavolt,electronic,euphoric,0.95,140,0.90,0.92,0.03,88,2020s,"euphoric;upbeat",0.70,0.50
+14,Sunday Morning Blues,Rusty Strings,blues,nostalgic,0.44,72,0.52,0.48,0.88,38,1990s,"nostalgic;warm",0.30,0.40
+15,Rage Protocol,Iron Cascade,metal,aggressive,0.97,168,0.22,0.55,0.06,65,2010s,"aggressive;dark",0.25,0.15
+16,Golden Hour,Saffron Sky,r&b,romantic,0.56,88,0.78,0.74,0.41,76,2020s,"warm;romantic",0.20,0.75
+17,Cumbia del Sol,Los Brillantes,latin,joyful,0.80,108,0.88,0.91,0.52,69,2000s,"upbeat;carefree",0.30,0.65
+18,Requiem for Rain,Hollow Strings,classical,somber,0.25,56,0.28,0.20,0.97,35,2000s,"melancholy;dark",0.98,0.00
+19,Digital Dreamscape,ByteWave,edm,uplifting,0.92,128,0.85,0.90,0.04,83,2020s,"euphoric;upbeat",0.75,0.55
+20,Dusty Highways,The Drifters,country,wistful,0.48,100,0.60,0.58,0.82,47,2000s,"nostalgic;warm",0.20,0.50

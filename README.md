@@ -288,6 +288,116 @@ To stress-test the scoring logic, we designed 7 adversarial user profiles with c
 
 ---
 
+## Optional Extensions
+
+### Challenge 1: Advanced Song Features
+
+We added 5 new attributes to every song in `data/songs.csv` that were not in the original 10-song starter:
+
+| Feature | Type | What It Captures |
+|---|---|---|
+| `popularity` | 0–100 | How well-known the song is |
+| `release_decade` | string | Era of the song (e.g. "2020s", "1990s") |
+| `mood_tags` | semicolon-separated list | Detailed emotional descriptors (e.g. "nostalgic;dreamy") |
+| `instrumental` | 0.0–1.0 | How instrumental vs. vocal the track is |
+| `lyrics_sentiment` | 0.0–1.0 | Positivity of lyrics (0 = dark/none, 1 = positive) |
+
+**How each feature is scored:**
+
+- **Popularity:** Normalized from 0–100 to 0.0–1.0, then multiplied by its weight. A song with popularity 85 at weight 0.5 earns `0.5 × (85/100) = 0.425`. This is a flat bonus — the system simply favors popular songs rather than matching a target.
+- **Decade:** Exact match, like genre. If the user sets `preferred_decade: "2020s"` and the song matches, it gets the full weight. No partial credit for adjacent decades.
+- **Mood tags:** Uses **set intersection for partial credit**. If the user wants `["nostalgic", "dreamy"]` and a song has `["nostalgic", "warm"]`, the overlap is 1 out of 2 tags, so it earns `weight × (1/2) = half credit`. This solves the all-or-nothing problem that genre and mood matching had.
+- **Instrumental:** Uses the same `1 - abs(diff)` similarity formula as energy/valence. A user targeting 0.85 instrumentalness and a song at 0.90 earns `weight × (1 - 0.05) = 95%` of the max.
+- **Lyrics sentiment:** Same similarity formula. A user wanting dark lyrics (target 0.10) closely matches a song with sentiment 0.00.
+
+All 5 features are **gated by weight** — they only activate when their weight is non-zero. The default `"balanced"` mode sets them all to 0.0, preserving original behavior. Only `"full-feature"` mode turns them on.
+
+---
+
+### Challenge 2: Multiple Scoring Modes (Strategy Pattern)
+
+Instead of one fixed set of weights, the recommender now supports **5 named scoring strategies**. The algorithm stays the same — only the weight configuration changes. This is the Strategy Pattern.
+
+| Mode | Key Weights | When to Use |
+|---|---|---|
+| `balanced` | genre 2.0, mood 1.0, energy 1.5 | Default — original baseline |
+| `genre-first` | genre **4.0**, everything else ≤ 0.5 | When genre loyalty matters most |
+| `mood-first` | mood **3.0**, mood_tags 1.0, valence 1.5 | When emotional fit matters most |
+| `energy-focused` | energy **3.0**, dance **1.5**, genre 0.5 | Workouts, parties, physical context |
+| `full-feature` | All 11 features active | Uses the 5 new Challenge 1 attributes |
+
+**How it works in code:** `SCORING_MODES` is a dictionary of dictionaries. Each key is a mode name, each value is a complete weight set. The `score_song()` function accepts an optional `mode` parameter — if provided, it looks up the weights by name; otherwise it falls back to the legacy Choice 0/1/2 system.
+
+**How to switch modes:** Pass the mode name to `recommend_songs()`:
+```python
+recommend_songs(user_prefs, songs, k=5, mode="mood-first")
+```
+
+---
+
+### Challenge 3: Diversity and Fairness Logic
+
+The diversity penalty prevents the top results from being dominated by the same artist or genre.
+
+**How it works:** After initial scoring, `apply_diversity_penalty()` walks through songs in score order and maintains two counters — `seen_artists` and `seen_genres`. If a song's artist or genre already appeared, its score is reduced:
+
+- **Repeat artist:** `-1.0 × number of times already seen`
+- **Repeat genre:** `-0.5 × number of times already seen`
+
+The penalty **escalates** with each repeat. The 2nd LoRoom song gets -1.0 (artist) and -0.5 (genre). A hypothetical 3rd would get -2.0 and -1.0. This naturally pushes diverse songs upward.
+
+**Example — Chill Studier profile:**
+
+| Rank | Without Diversity | With Diversity |
+|---|---|---|
+| 1 | Library Rain (lofi, Paper Lanterns) 6.88 | Library Rain (lofi, Paper Lanterns) 6.88 |
+| 2 | Midnight Coding (lofi, LoRoom) 6.83 | Midnight Coding (lofi, LoRoom) 6.33 — *repeat genre -0.5* |
+| 3 | Focus Flow (lofi, LoRoom) 5.90 | **Spacewalk Thoughts** (ambient, Orbit Bloom) 5.56 |
+| 4 | Spacewalk Thoughts (ambient) 5.56 | Coffee Shop Stories (jazz, Slow Stereo) 4.83 |
+| 5 | Coffee Shop Stories (jazz) 4.83 | Sunday Morning Blues (blues, Rusty Strings) 4.72 |
+
+Focus Flow dropped from #3 to #4 because it got `-1.0` (repeat LoRoom) and `-0.5` (repeat lofi), letting a different genre and artist surface at #3.
+
+**How to enable:** Pass `diversity=True` to `recommend_songs()`:
+```python
+recommend_songs(user_prefs, songs, k=5, diversity=True)
+```
+
+---
+
+### Challenge 4: Visual Summary Table
+
+The terminal output now uses the `tabulate` library with `fancy_grid` formatting instead of manual f-string formatting.
+
+**Before (manual formatting):**
+```
+  #    Song                         Score
+  ---- ---------------------------- -----
+  1    Sunrise City                  5.95
+       by Neon Echo
+         - genre match (+2.0)
+```
+
+**After (tabulate):**
+```
+╒═════╤════════════════╤═════════╤═════════════════════════════════════╕
+│  #  │ Song           │   Score │ Reasons                             │
+╞═════╪════════════════╪═════════╪═════════════════════════════════════╡
+│  1  │ Sunrise City   │    6.42 │ - genre match (+1.0)                │
+│     │                │         │   - energy similarity (+2.94)       │
+╘═════╧════════════════╧═════════╧═════════════════════════════════════╛
+```
+
+**How it works:** The `format_results_table()` function takes the recommendation list and builds a table with 5 columns: rank, song title, artist, score, and reasons. The key detail is that the semicolon-separated explanation string is split into bullet-pointed lines (`"\n".join(f"  - {r}" for ...)`) so each scoring reason gets its own row inside the cell. Tabulate auto-calculates column widths based on content, so it adapts to any song title length — unlike the old fixed-width formatting which broke on long names.
+
+**Usage:**
+```python
+from src.recommender import format_results_table
+print(format_results_table(recommendations, "Profile Name", user_prefs))
+```
+
+---
+
 ## Limitations and Risks
 
 Summarize some limitations of your recommender.
