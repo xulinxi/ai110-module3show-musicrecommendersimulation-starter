@@ -64,40 +64,56 @@ def load_songs(csv_path: str) -> List[Dict]:
             songs.append(row)
     return songs
 
+# ── Weight Configuration ──────────────────────────────────────────────
+# Choice 0 (Original):  GENRE=2.0, MOOD=1.0, ENERGY=1.5, VALENCE=1.0, DANCE=0.5, ACOUSTIC=0.5
+# Choice 1 (Weight Shift): GENRE=1.0, MOOD=1.0, ENERGY=3.0, VALENCE=1.0, DANCE=0.5, ACOUSTIC=0.5
+#   → halved genre (2.0→1.0), doubled energy (1.5→3.0)
+# Choice 2 (Feature Removal): GENRE=2.0, MOOD=0.0, ENERGY=1.5, VALENCE=1.0, DANCE=0.5, ACOUSTIC=0.5
+#   → mood check removed (1.0→0.0)
+ACTIVE_CHOICE = 1  # Change to 0, 1, or 2 to switch experiments
+
+WEIGHTS = {
+    0: {"genre": 2.0, "mood": 1.0, "energy": 1.5, "valence": 1.0, "dance": 0.5, "acoustic": 0.5},
+    1: {"genre": 1.0, "mood": 1.0, "energy": 3.0, "valence": 1.0, "dance": 0.5, "acoustic": 0.5},
+    2: {"genre": 2.0, "mood": 0.0, "energy": 1.5, "valence": 1.0, "dance": 0.5, "acoustic": 0.5},
+}
+
+W = WEIGHTS[ACTIVE_CHOICE]
+
 def score_song(user_prefs: Dict, song: Dict) -> Tuple[float, List[str]]:
     """Scores a single song against user preferences and returns (score, list of reasons)."""
     score = 0.0
     reasons = []
 
-    # Genre match: +2.0
+    # Genre match
     if song["genre"] == user_prefs["genre"]:
-        score += 2.0
-        reasons.append("genre match (+2.0)")
+        score += W["genre"]
+        reasons.append(f"genre match (+{W['genre']:.1f})")
 
-    # Mood match: +1.0
-    if song["mood"] == user_prefs["mood"]:
-        score += 1.0
-        reasons.append("mood match (+1.0)")
+    # Mood match
+    if W["mood"] > 0 and song["mood"] == user_prefs["mood"]:
+        score += W["mood"]
+        reasons.append(f"mood match (+{W['mood']:.1f})")
 
-    # Energy similarity: up to +1.5
-    energy_sim = 1.5 * (1 - abs(song["energy"] - user_prefs["energy"]))
+    # Energy similarity
+    energy_sim = W["energy"] * (1 - abs(song["energy"] - user_prefs["energy"]))
     score += energy_sim
     reasons.append(f"energy similarity (+{energy_sim:.2f})")
 
-    # Valence similarity: up to +1.0
-    valence_sim = 1.0 * (1 - abs(song["valence"] - user_prefs["valence"]))
+    # Valence similarity
+    valence_sim = W["valence"] * (1 - abs(song["valence"] - user_prefs["valence"]))
     score += valence_sim
     reasons.append(f"valence similarity (+{valence_sim:.2f})")
 
-    # Danceability similarity: up to +0.5
-    dance_sim = 0.5 * (1 - abs(song["danceability"] - user_prefs["danceability"]))
+    # Danceability similarity
+    dance_sim = W["dance"] * (1 - abs(song["danceability"] - user_prefs["danceability"]))
     score += dance_sim
     reasons.append(f"danceability similarity (+{dance_sim:.2f})")
 
-    # Acousticness bonus: +0.5 if user likes acoustic and song is acoustic
+    # Acousticness bonus
     if user_prefs["likes_acoustic"] and song["acousticness"] > 0.7:
-        score += 0.5
-        reasons.append("acoustic bonus (+0.5)")
+        score += W["acoustic"]
+        reasons.append(f"acoustic bonus (+{W['acoustic']:.1f})")
 
     return (score, reasons)
 

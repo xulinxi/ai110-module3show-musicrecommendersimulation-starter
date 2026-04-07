@@ -61,29 +61,29 @@ Prompts:
 
 ## 6. Limitations and Bias 
 
-Where the system struggles or behaves unfairly. 
-
-Prompts:  
-
-- Features it does not consider  
-- Genres or moods that are underrepresented  
-- Cases where the system overfits to one preference  
-- Ways the scoring might unintentionally favor some users  
+The system creates a **single-song genre lock** for most users: 15 out of 17 genres in the catalog have only one song, and the +2.0 genre weight is so dominant that this lone representative is virtually guaranteed to rank #1 regardless of the user's energy, mood, or valence preferences. Our adversarial testing confirmed this — in Edge Case 7 (Pop Fan with Metal Tastes), a user whose numeric preferences perfectly matched metal music still got two pop songs ranked above the actual metal track, because the genre bonus alone outweighed near-perfect alignment on every other feature. This means users of single-song genres receive the illusion of personalization when the outcome is effectively pre-determined. The filter bubble is invisible to the user: the system never signals that only one song in the catalog matched their genre, so they have no reason to question the recommendation.  
 
 ---
 
 ## 7. Evaluation  
 
-How you checked whether the recommender behaved as expected. 
+We tested the recommender against **4 standard profiles** and **7 adversarial edge-case profiles**.
 
-Prompts:  
+**Standard profiles tested:**
+- **Pop Enthusiast** (pop, happy, energy 0.8) — top pick was "Sunrise City," which felt right for an upbeat pop listener.
+- **Chill Studier** (lofi, chill, energy 0.38) — top picks were "Library Rain" and "Midnight Coding," both quiet lofi tracks. Matched expectations.
+- **Workout Warrior** (edm, energetic, energy 0.93) — "Digital Dreamscape" ranked #1. High-energy EDM made sense for a gym session.
+- **Melancholic Folkster** (folk, melancholic, energy 0.3) — "Ghost in the Garden" dominated at 6.46. The only folk song, so it was a guaranteed winner.
 
-- Which user profiles you tested  
-- What you looked for in the recommendations  
-- What surprised you  
-- Any simple tests or comparisons you ran  
+**Adversarial profiles tested (7 edge cases):** Ghost Genre, All-Zeros Minimalist, All-Ones Maximalist, Acoustic EDM Fan, Mr. Average, Anti-Acoustic Chiller, and Pop Fan with Metal Tastes. These were designed with conflicting or extreme preferences to stress-test the scoring logic.
 
-No need for numeric metrics unless you created some.
+**What surprised us:**
+- The **Anti-Acoustic Chiller** was the most surprising result. A user who explicitly set `likes_acoustic: False` received two highly acoustic songs (acousticness 0.86 and 0.71) as their top recommendations. We expected the system to at least deprioritize acoustic tracks, but it turned out `likes_acoustic: False` has literally zero effect — there is no penalty, only a bonus.
+- The **Pop Fan with Metal Tastes** profile showed that a user with perfect numeric alignment to metal (energy 0.97, valence 0.22, aggressive mood) still got two pop songs ranked above the actual metal track. The +2.0 genre bonus overrode perfect similarity on every continuous feature.
+
+**Logic experiment:** We ran two weight variations — Choice 1 (genre halved to 1.0, energy doubled to 3.0) and Choice 2 (mood disabled). Choice 1 improved cross-genre discovery; for example, the Workout Warrior profile started surfacing "Velvet Thunder" (hip hop, energetic) at #2, which felt musically intuitive. Choice 2 collapsed distinctions between same-genre songs, making rankings feel arbitrary.
+
+See [reflection.md](reflection.md) for detailed profile-pair comparisons.
 
 ---
 

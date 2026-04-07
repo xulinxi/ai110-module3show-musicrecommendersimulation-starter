@@ -176,6 +176,116 @@ Below is a screenshot of the recommender running against four user profiles (Pop
 
 ![Recommendations Output](images/recommendations_output.png)
 
+### Does It "Feel" Right? — Mr. Average (all 0.5) Intuition Check
+
+Looking at the Edge Case 5 profile (genre: pop, mood: happy, energy: 0.5, valence: 0.5, danceability: 0.5), the results feel reasonable. "Sunrise City" (pop, happy) ranks first at 5.04, and the overall top-5 trend leans positive and upbeat, which matches what you'd expect from someone who picked "pop" and "happy."
+
+**Why "Sunrise City" ranks #1 for this profile:** It is the only song in the catalog that matches *both* genre (pop, +2.0) and mood (happy, +1.0), giving it a 3.0-point head start before numeric features are even calculated. Its energy (0.82), valence (0.84), and danceability (0.79) each contribute moderate similarity scores against the 0.5 targets, adding another ~2.0 points. That combination of dual categorical match plus decent numeric similarity pushes it to 5.04 — comfortably ahead of #2 "Gym Hero" (3.90), which matches genre but not mood.
+
+**Does "Sunrise City" always dominate?** No. It only appears at the top when the user's genre is "pop" *and* mood is "happy." For profiles like Workout Warrior (edm/energetic), Chill Studier (lofi/chill), or Anti-Acoustic Chiller (lofi/chill), "Sunrise City" doesn't even make the top 5. This confirms that the genre weight (+2.0) is working as intended — it's a strong signal but not an unfair one, since it requires alignment on genre to activate. The system provides variety across different profiles rather than funneling everyone toward the same song.
+
+---
+
+## Adversarial / Edge-Case Profile Analysis
+
+To stress-test the scoring logic, we designed 7 adversarial user profiles with conflicting, extreme, or unusual preferences. Each profile targets a specific weakness in the recommendation algorithm.
+
+### Edge Case 1: Ghost Genre (reggaeton)
+
+**Profile:** Genre: reggaeton | Mood: happy | Energy: 0.8 | Valence: 0.8 | Dance: 0.85 | Acoustic: No
+
+![Edge Case 1 - Ghost Genre](images/edge_case1.png)
+
+**Why it's adversarial:** "reggaeton" does not exist in the song catalog, so the +2.0 genre bonus never fires.
+
+**What happened:** The top score is only 3.91 (vs. ~5-6 for profiles with matching genres). The system falls back entirely on mood match and numeric similarity. "Rooftop Lights" and "Sunrise City" tie near 3.9 thanks to their "happy" mood (+1.0) and close numeric features. Without genre, the recommendations are reasonable but the score ceiling drops significantly. **This reveals that non-existent genres degrade silently** — the user gets no warning that their genre preference was ignored entirely.
+
+---
+
+### Edge Case 2: All-Zeros Minimalist
+
+**Profile:** Genre: ambient | Mood: somber | Energy: 0.0 | Valence: 0.0 | Dance: 0.0 | Acoustic: Yes
+
+![Edge Case 2 - All-Zeros Minimalist](images/edge_case2.png)
+
+**Why it's adversarial:** All numeric features pushed to the absolute floor (0.0). No song in the catalog has values this extreme.
+
+**What happened:** "Spacewalk Thoughts" (ambient, energy 0.28) wins at 4.22 with genre match + acoustic bonus. "Requiem for Rain" (somber, energy 0.25) is second at 3.74 with mood match + acoustic bonus. The system handles extremes gracefully here because the continuous scoring formula `1 - abs(diff)` degrades smoothly. However, **the acoustic bonus (+0.5) appears on all 5 results**, showing it acts as a blanket boost for any high-acousticness song rather than a targeted preference signal.
+
+---
+
+### Edge Case 3: All-Ones Maximalist
+
+**Profile:** Genre: electronic | Mood: euphoric | Energy: 1.0 | Valence: 1.0 | Dance: 1.0 | Acoustic: No
+
+![Edge Case 3 - All-Ones Maximalist](images/edge_case3.png)
+
+**Why it's adversarial:** All numeric features maxed to 1.0. Tests the upper extreme.
+
+**What happened:** "Neon Pulse" dominates at 5.79 with genre + mood match and the closest numeric features (energy 0.95, valence 0.90, danceability 0.92). The gap to #2 ("Digital Dreamscape" at 2.68) is massive — 3.11 points. **This shows how genre+mood together create a near-insurmountable advantage.** Even "Digital Dreamscape" (EDM, energy 0.92) with excellent numeric alignment can't compete without genre/mood bonuses.
+
+---
+
+### Edge Case 4: Acoustic EDM Fan
+
+**Profile:** Genre: edm | Mood: uplifting | Energy: 0.9 | Valence: 0.85 | Dance: 0.9 | Acoustic: Yes
+
+![Edge Case 4 - Acoustic EDM Fan](images/edge_case4.png)
+
+**Why it's adversarial:** The user says they like acoustic music but their favorite genre (EDM) is inherently non-acoustic (acousticness ~0.04). This creates a direct contradiction.
+
+**What happened:** "Digital Dreamscape" (EDM, acousticness 0.04) wins at 5.97. The acoustic bonus **never fires for any of the top 5** because all high-energy/danceable songs have low acousticness. The `likes_acoustic: True` preference is completely invisible in the results. **This is the biggest scoring flaw: the acoustic feature is asymmetric.** It can only add +0.5 (never penalize), so when the user's genre preferences conflict with their acoustic preference, the acoustic preference silently disappears.
+
+---
+
+### Edge Case 5: Mr. Average (all 0.5)
+
+**Profile:** Genre: pop | Mood: happy | Energy: 0.5 | Valence: 0.5 | Dance: 0.5 | Acoustic: No
+
+![Edge Case 5 - Mr. Average](images/edge_case5.png)
+
+**Why it's adversarial:** All numeric features at the dead center (0.5). Tests whether the system has a "bland middle" bias where many songs cluster near similar scores.
+
+**What happened:** "Sunrise City" (pop, happy) wins at 5.04 with both genre and mood match. Interestingly, #4 "Sunday Morning Blues" (blues, energy 0.44) and #5 "Dusty Highways" (country, energy 0.48) score 2.88 and 2.83 — nearly identical despite being completely different genres and moods. **The mid-range profile creates a cluster of mediocre matches** where the system struggles to differentiate. Songs with no genre/mood match all land in a narrow 2.5-2.9 band, making the ranking feel arbitrary for everything below the genre-matched songs.
+
+---
+
+### Edge Case 6: Anti-Acoustic Chiller
+
+**Profile:** Genre: lofi | Mood: chill | Energy: 0.35 | Valence: 0.6 | Dance: 0.55 | Acoustic: No
+
+![Edge Case 6 - Anti-Acoustic Chiller](images/edge_case6.png)
+
+**Why it's adversarial:** The user explicitly does NOT want acoustic music (`likes_acoustic: False`), but lofi songs in the catalog have very high acousticness (0.71-0.86).
+
+**What happened:** "Library Rain" (acousticness 0.86) wins at 5.99. "Midnight Coding" (acousticness 0.71) is second at 5.82. All top 3 are highly acoustic songs. **Setting `likes_acoustic: False` has absolutely zero effect on the results** — there is no penalty mechanism for acoustic songs. The scoring is entirely one-sided: acoustic preference can only help, never hurt. A user who actively dislikes acoustic music gets a wall of acoustic recommendations. This confirms the asymmetry found in Edge Case 4 from the opposite direction.
+
+---
+
+### Edge Case 7: Pop Fan with Metal Tastes
+
+**Profile:** Genre: pop | Mood: aggressive | Energy: 0.97 | Valence: 0.22 | Dance: 0.55 | Acoustic: No
+
+![Edge Case 7 - Pop Fan with Metal Tastes](images/edge_case7.png)
+
+**Why it's adversarial:** The user says their genre is "pop" but all their numeric preferences (very high energy, very low valence, aggressive mood) perfectly describe metal music. Tests whether genre label or actual taste features drive the recommendation.
+
+**What happened:** "Gym Hero" (pop, energy 0.93) wins at 4.23 thanks to the +2.0 genre bonus, despite only moderate numeric alignment (valence 0.77 vs. target 0.22 is a poor match). "Rage Protocol" (metal, aggressive) is #3 at 4.00 with a perfect numeric match (+1.50 energy, +1.00 valence, +0.50 danceability) plus mood match (+1.0). **The genre bonus of +2.0 lets a numerically poor match ("Sunrise City" at 4.04) outrank a numerically perfect match ("Rage Protocol" at 4.00).** This demonstrates that genre is over-weighted: it can override near-perfect alignment on every other feature.
+
+---
+
+### Summary of Vulnerabilities Found
+
+| # | Edge Case | Key Finding |
+|---|---|---|
+| 1 | Ghost Genre | Non-existent genres silently degrade; no user feedback |
+| 2 | All-Zeros | Acoustic bonus is a blanket boost, not targeted |
+| 3 | All-Ones | Genre+mood create an insurmountable 3+ point gap |
+| 4 | Acoustic EDM | `likes_acoustic` is invisible when genre conflicts with acousticness |
+| 5 | Mr. Average | Mid-range profiles create indistinguishable score clusters |
+| 6 | Anti-Acoustic | `likes_acoustic: False` has zero effect — no penalty exists |
+| 7 | Pop + Metal Tastes | Genre bonus overrides perfect numeric alignment |
+
 ---
 
 ## Limitations and Risks
